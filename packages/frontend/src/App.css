@@ -44,6 +44,46 @@ input {
   border-radius: 4px;
 }
 
+/* Priority toggle buttons */
+.priority-btn {
+  background-color: #7A7A7A;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  min-width: 48px;
+  padding: 4px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.priority-btn:hover {
+  background-color: #5f5f5f;
+}
+
+.priority-btn.priority-btn--selected {
+  background-color: #07F2E6;
+}
+
+.priority-btn.priority-btn--selected:hover {
+  background-color: #05d4c9;
+}
+
+/* Priority chip in task list */
+.priority-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background-color: #07F2E6;
+  color: white;
+  font-weight: 700;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
 button {
   padding: 8px 16px;
   background-color: #61dafb;

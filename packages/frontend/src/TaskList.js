@@ -5,8 +5,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import EventIcon from '@mui/icons-material/Event';
-
-const PRIORITY_COLOR_SELECTED = '#07F2E6';
+import './App.css';
 
 function TaskList({ onEdit }) {
   const [tasks, setTasks] = useState([]);
@@ -206,17 +205,7 @@ function TaskList({ onEdit }) {
               }}
             >
               {task.priority && (
-                <Chip
-                  label={task.priority}
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    background: PRIORITY_COLOR_SELECTED,
-                    color: 'white',
-                  }}
-                />
+                <span className="priority-chip">{task.priority}</span>
               )}
               {task.due_date && (
                 <Chip

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
+import './App.css';
 
 const PRIORITIES = ['P1', 'P2', 'P3'];
 
@@ -153,26 +154,14 @@ function TaskForm({ onSave, initialTask }) {
           <Typography variant="caption" sx={{ color: '#616161', fontWeight: 500, mb: 0.5, display: 'block' }}>Priority</Typography>
           <Box display="flex" gap={1} data-testid="priority-select">
             {PRIORITIES.map(p => (
-              <Button
+              <button
                 key={p}
                 type="button"
-                size="small"
                 onClick={() => setPriority(p)}
-                sx={{
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  minWidth: 48,
-                  px: 2,
-                  background: priority === p ? '#07F2E6' : '#7A7A7A',
-                  color: 'white',
-                  '&:hover': {
-                    background: priority === p ? '#05d4c9' : '#5f5f5f',
-                  },
-                }}
+                className={`priority-btn${priority === p ? ' priority-btn--selected' : ''}`}
               >
                 {p}
-              </Button>
+              </button>
             ))}
           </Box>
         </Box>
