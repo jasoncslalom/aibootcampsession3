@@ -6,11 +6,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import EventIcon from '@mui/icons-material/Event';
 
-const PRIORITY_COLORS = {
-  P1: '#d32f2f',
-  P2: '#ed6c02',
-  P3: '#2e7d32',
-};
+const PRIORITY_COLOR_SELECTED = '#07F2E6';
 
 function TaskList({ onEdit }) {
   const [tasks, setTasks] = useState([]);
@@ -217,7 +213,7 @@ function TaskList({ onEdit }) {
                     height: 20,
                     fontSize: '0.7rem',
                     fontWeight: 700,
-                    background: PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.P3,
+                    background: PRIORITY_COLOR_SELECTED,
                     color: 'white',
                   }}
                 />
