@@ -1,0 +1,193 @@
+Based on requirements in docs/prd-todo.md and following the structure in docs/templates/epic-and-stories-template.md.
+
+Implementation reference baseline for technical requirements:
+- Current frontend implementation uses API calls in packages/frontend/src/App.js, packages/frontend/src/TaskForm.js, and packages/frontend/src/TaskList.js.
+- Current backend implementation uses Express with in-memory SQLite in packages/backend/src/app.js and task API tests in packages/backend/__tests__/tasks.test.js.
+- PRD MVP requires local-only storage and no backend dependency, so MVP technical requirements below include migration from API-driven persistence to local storage in frontend.
+
+## MVP
+
+- Epic: Task Data Model Enhancements
+  - Story: Add optional dueDate field to task model
+    - Acceptance Criteria:
+      - Given a task is created or edited, dueDate can be omitted and the task remains valid.
+      - Given dueDate is present, it is stored as a date string field on the task.
+      - Given dueDate is absent or invalid, task behavior matches a task with no dueDate.
+    - Technical Requirements:
+      - Define a canonical frontend task shape with dueDate field (camelCase) and keep compatibility mapping from existing due_date API payloads while migrating.
+      - Implement date parsing utility used by create, edit, filter, and sort paths so invalid dates resolve to null.
+      - Ensure task serialization to local storage omits dueDate or stores null when absent/invalid.
+  - Story: Add priority field with P1, P2, P3 enum values
+    - Acceptance Criteria:
+      - Given a task is created or edited, priority accepts only P1, P2, or P3.
+      - Given a value outside P1, P2, P3 is provided, the task does not persist that invalid value.
+      - Given stored tasks are displayed, the saved priority value is visible as one of P1, P2, or P3.
+    - Technical Requirements:
+      - Extend task model with priority field and define shared constants for allowed values P1, P2, P3.
+      - Add validation guard in save flow to reject or normalize non-enum values before persistence.
+      - Update list UI to render priority label for each task.
+  - Story: Default priority to P3 when priority is missing
+    - Acceptance Criteria:
+      - Given no priority is provided during task creation, the saved task priority is P3.
+      - Given a task with missing priority is loaded from local storage, it is treated as P3 in app behavior.
+      - Given priority is explicitly set to P1 or P2, the value is preserved and not overwritten by defaulting.
+    - Technical Requirements:
+      - Implement normalization function that applies default priority P3 on create and on read of legacy tasks.
+      - Apply defaulting at state boundary (input to task store) rather than only at render time.
+      - Add tests for create-path defaulting and load-path backfill defaulting.
+
+- Epic: Task Input and Validation
+  - Story: Require title when creating a task
+    - Acceptance Criteria:
+      - Given the title input is empty, task creation is blocked.
+      - Given the title input has a non-empty value, task creation is allowed.
+      - Given a task is saved, title is always present.
+    - Technical Requirements:
+      - Keep required title check in packages/frontend/src/TaskForm.js and trim whitespace before validation.
+      - Enforce same title validation in task persistence layer to prevent invalid writes.
+      - Surface inline validation message without mutating stored tasks.
+  - Story: Validate dueDate as ISO format YYYY-MM-DD
+    - Acceptance Criteria:
+      - Given a dueDate is entered in YYYY-MM-DD format, it is accepted.
+      - Given a dueDate not matching YYYY-MM-DD format is entered, it is treated as invalid.
+      - Given an invalid dueDate input, the app does not save it as dueDate.
+    - Technical Requirements:
+      - Add strict date regex plus calendar validity check utility for YYYY-MM-DD.
+      - Validate dates on submit in TaskForm and again in task storage adapter for defense in depth.
+      - Ensure accepted dueDate values are persisted in ISO date-only format.
+  - Story: Ignore invalid dueDate values and store as absent
+    - Acceptance Criteria:
+      - Given an invalid dueDate is submitted, the saved task has no dueDate value.
+      - Given a task with invalid dueDate data is loaded, the app treats dueDate as absent.
+      - Given filters or sorting run, tasks with invalid dueDate are handled as tasks without dueDate.
+    - Technical Requirements:
+      - Normalize invalid dueDate to null before saving task records.
+      - Add migration sanitization for loaded task arrays so malformed dueDate never reaches UI logic.
+      - Reuse sanitized date accessor in filter/sort functions to avoid duplicated invalid-date handling.
+  - Story: Validate priority against P1, P2, P3 values
+    - Acceptance Criteria:
+      - Given priority is P1, P2, or P3, task save succeeds with that value.
+      - Given priority is missing, defaulting behavior sets it to P3.
+      - Given priority is outside allowed values, the invalid value is not persisted.
+    - Technical Requirements:
+      - Add priority input control to TaskForm with constrained values P1/P2/P3.
+      - Add schema-like validator in task service module that checks enum membership and applies default.
+      - Create unit tests covering valid values, missing value, and invalid value normalization.
+
+- Epic: Date-Based Task Filtering
+  - Story: Add All tasks filter view
+    - Acceptance Criteria:
+      - Given the All filter is selected, all tasks are shown regardless of dueDate.
+      - Given tasks exist with and without dueDate, All still shows every task.
+      - Given filter changes from another view to All, full list visibility is restored.
+    - Technical Requirements:
+      - Add filter state in packages/frontend/src/App.js with values All, Today, Overdue.
+      - Add UI control (tabs/chips/buttons) to switch current filter mode.
+      - Implement All filter predicate as pass-through of normalized task list.
+  - Story: Add Today tasks filter view
+    - Acceptance Criteria:
+      - Given the Today filter is selected, only tasks with dueDate equal to today are shown.
+      - Given a task has no dueDate, it is excluded from Today.
+      - Given dueDate is before or after today, task is excluded from Today.
+    - Technical Requirements:
+      - Implement local-date comparison utility to avoid timezone shifts when evaluating today.
+      - Filter tasks by exact YYYY-MM-DD match against local current date string.
+      - Exclude null/invalid dueDate values from Today results by default.
+  - Story: Add Overdue tasks filter view
+    - Acceptance Criteria:
+      - Given the Overdue filter is selected, only tasks with dueDate earlier than today are shown.
+      - Given a task has dueDate equal to today, it is not shown as Overdue.
+      - Given a task has no dueDate, it is excluded from Overdue.
+    - Technical Requirements:
+      - Implement overdue predicate using normalized date-only values and strict less-than today logic.
+      - Keep due today out of overdue set.
+      - Exclude null/invalid dueDate values from overdue set.
+  - Story: Apply selected filter to displayed task list
+    - Acceptance Criteria:
+      - Given a filter is selected, the rendered task list updates to that filter's rules.
+      - Given filters are switched repeatedly, list results remain consistent with each selected filter.
+      - Given tasks are added or edited, current filter is applied to the updated list.
+    - Technical Requirements:
+      - Derive filteredTasks from source task state and active filter in a single selector function.
+      - Recompute filteredTasks on task mutations and filter changes without manual refresh keys.
+      - Remove dependence on API refetch cycle in packages/frontend/src/TaskList.js for MVP local mode.
+
+- Epic: Local-Only Persistence
+  - Story: Persist tasks in local storage only
+    - Acceptance Criteria:
+      - Given tasks are created, edited, or completed, data is stored in local storage.
+      - Given the app is reloaded in the same browser, previously saved tasks are restored.
+      - Given network connectivity is unavailable, core task behavior continues to function locally.
+    - Technical Requirements:
+      - Replace fetch-based CRUD in App and TaskList with a local storage backed task repository module.
+      - Define storage key versioning (for example todo.tasks.v1) and atomic read/write helpers.
+      - Load initial task state from local storage at app start and persist on every mutation.
+  - Story: Prevent backend or external storage dependencies
+    - Acceptance Criteria:
+      - Given app usage for task operations, no backend API is required.
+      - Given task persistence behavior, no external storage integration is used.
+      - Given MVP implementation, data flow remains client-side and local only.
+    - Technical Requirements:
+      - Remove mandatory runtime dependency on /api/tasks endpoints for MVP path.
+      - Keep backend code in packages/backend/src/app.js out of MVP execution path and document as non-MVP artifact.
+      - Update frontend tests to mock local storage interactions instead of network requests.
+
+## Post-MVP
+
+- Epic: Overdue Task Visibility
+  - Story: Highlight overdue tasks in the task list
+    - Acceptance Criteria:
+      - Given a task is overdue, it is visually distinct from non-overdue tasks.
+      - Given a task due today or in the future, overdue highlighting is not applied.
+      - Given a task has no dueDate, overdue highlighting is not applied.
+    - Technical Requirements:
+      - Add isOverdue(task) helper shared by filter and style logic.
+      - Update task row styling in packages/frontend/src/TaskList.js with explicit overdue visual token set.
+      - Ensure overdue style is computed from normalized dueDate and current local date.
+
+- Epic: Multi-Criteria Task Sorting
+  - Story: Sort overdue tasks before non-overdue tasks
+    - Acceptance Criteria:
+      - Given mixed task states, overdue tasks appear before non-overdue tasks.
+      - Given multiple overdue tasks, subsequent sorting rules determine their internal order.
+      - Given no overdue tasks, order falls through to remaining sorting rules.
+    - Technical Requirements:
+      - Implement comparator stage 1: overdue group rank (overdue first).
+      - Feed both filtered and unfiltered views through same comparator pipeline.
+      - Add tests proving non-overdue-only lists still sort deterministically.
+  - Story: Sort tasks by priority from P1 to P3
+    - Acceptance Criteria:
+      - Given tasks with different priorities in the same overdue group, P1 appears before P2 and P2 before P3.
+      - Given two tasks have the same priority, next sorting rule is used.
+      - Given priority is missing in input, default P3 behavior is respected in sorting.
+    - Technical Requirements:
+      - Implement comparator stage 2 using priority rank map P1=1, P2=2, P3=3.
+      - Normalize missing/invalid priorities to P3 before sort evaluation.
+      - Add sorting tests that isolate priority ordering within same overdue group.
+  - Story: Sort tasks with dueDate in ascending date order
+    - Acceptance Criteria:
+      - Given tasks have dueDate values and same higher-priority sort conditions, earlier dates appear first.
+      - Given two tasks share the same dueDate, relative order remains stable.
+      - Given dated and undated tasks are compared, dated tasks are placed before undated tasks per sorting rules.
+    - Technical Requirements:
+      - Implement comparator stage 3 using date-only ascending comparison for valid dueDate values.
+      - Preserve stable order fallback when dueDate values are equal.
+      - Keep invalid dueDate normalized to null so it is handled by undated ordering rule.
+  - Story: Place tasks without dueDate after dated tasks
+    - Acceptance Criteria:
+      - Given tasks with and without dueDate in the same prior sort group, tasks with dueDate appear first.
+      - Given multiple tasks without dueDate, their relative order remains stable.
+      - Given all tasks lack dueDate, ordering still applies consistently using earlier rules where possible.
+    - Technical Requirements:
+      - Implement comparator stage 4 for null dueDate placement at end of same rank group.
+      - Preserve input order among tasks that are both undated and otherwise tied.
+      - Add explicit tests for mixed dated and undated collections.
+  - Story: Combine sorting rules into a single stable task order
+    - Acceptance Criteria:
+      - Given a mixed task set, final ordering follows this sequence: overdue first, then priority P1 to P3, then dueDate ascending, then tasks without dueDate last.
+      - Given repeated renders with unchanged data, sort output remains stable.
+      - Given task updates, the list reorders to reflect the full combined rule set.
+    - Technical Requirements:
+      - Build one shared comparator utility used by task list rendering and any derived selectors.
+      - Apply deterministic tie-breaker (for example createdAt then id) to guarantee stability across renders.
+      - Add integration tests validating full rule composition against representative mixed datasets.
